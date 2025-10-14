@@ -383,6 +383,7 @@ class DOMWatchdog(BaseWatchdog):
 			# Wait for both tasks to complete
 			content = None
 			screenshot_b64 = None
+			clean_screenshot_b64 = None
 
 			if dom_task:
 				try:
@@ -397,6 +398,8 @@ class DOMWatchdog(BaseWatchdog):
 			if screenshot_task:
 				try:
 					screenshot_b64 = await screenshot_task
+					# Preserve a clean copy before any highlighting
+					clean_screenshot_b64 = screenshot_b64
 					self.logger.debug('🔍 DOMWatchdog.on_BrowserStateRequestEvent: ✅ Clean screenshot captured')
 				except Exception as e:
 					self.logger.warning(f'🔍 DOMWatchdog.on_BrowserStateRequestEvent: Clean screenshot failed: {e}')
@@ -476,6 +479,7 @@ class DOMWatchdog(BaseWatchdog):
 				title=title,
 				tabs=tabs_info,
 				screenshot=screenshot_b64,
+				clean_screenshot=clean_screenshot_b64,
 				page_info=page_info,
 				pixels_above=0,
 				pixels_below=0,
