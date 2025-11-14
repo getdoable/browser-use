@@ -323,6 +323,11 @@ class DomService:
 					and adjusted_x + current_bounds.width > viewport_left
 					and adjusted_y < viewport_bottom + viewport_threshold
 					and adjusted_y + current_bounds.height > viewport_top - viewport_threshold
+					# check at least one of the y bounds is within the viewport
+					and (
+						adjusted_y > viewport_top and adjusted_y < viewport_bottom
+						or adjusted_y + current_bounds.height > viewport_top and adjusted_y + current_bounds.height < viewport_bottom
+					)
 				)
 
 				if not frame_intersects:
