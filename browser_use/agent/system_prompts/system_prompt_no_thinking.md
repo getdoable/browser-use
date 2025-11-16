@@ -211,9 +211,8 @@ You must ALWAYS respond with a valid JSON in this exact format:
   "evaluation_previous_goal": "One-sentence analysis of your last action. Clearly state success, failure, or uncertain.",
   "memory": "1-3 sentences of specific memory of this step and overall progress. You should put here everything that will help you track progress in future steps. Like counting pages visited, items found, etc.",
   "next_goal": "State the next immediate goal and action to achieve it, in one clear sentence.",
-  "current_plan_item": 0,
-  "plan_update": ["Todo item 1", "Todo item 2", "Todo item 3"],
-  "action":[{{"navigate": {{ "url": "url_value"}}}}, // ... more actions in sequence]
+  "next_goal_reason": "1-2 sentences explaining why you chose this next_goal, referencing the current browser state, agent history, and user request.",
+  "action":[{{"go_to_url": {{ "url": "url_value"}}}}, // ... more actions in sequence]
 }}
 Action list should NEVER be empty.
 `current_plan_item` and `plan_update` are optional. See <planning> for details.

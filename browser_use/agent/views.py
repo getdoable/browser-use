@@ -388,6 +388,7 @@ class AgentBrain(BaseModel):
 	evaluation_previous_goal: str
 	memory: str
 	next_goal: str
+	next_goal_reason: str | None = None
 
 
 class AgentOutput(BaseModel):
@@ -397,8 +398,7 @@ class AgentOutput(BaseModel):
 	evaluation_previous_goal: str | None = None
 	memory: str | None = None
 	next_goal: str | None = None
-	current_plan_item: int | None = None
-	plan_update: list[str] | None = None
+	next_goal_reason: str | None = None
 	action: list[ActionModel] = Field(
 		...,
 		json_schema_extra={'min_items': 1},  # Ensure at least one action is provided
@@ -407,7 +407,7 @@ class AgentOutput(BaseModel):
 	@classmethod
 	def model_json_schema(cls, **kwargs):
 		schema = super().model_json_schema(**kwargs)
-		schema['required'] = ['evaluation_previous_goal', 'memory', 'next_goal', 'action']
+		schema['required'] = ['evaluation_previous_goal', 'memory', 'next_goal', 'next_goal_reason', 'action']
 		return schema
 
 	@property
@@ -418,6 +418,7 @@ class AgentOutput(BaseModel):
 			evaluation_previous_goal=self.evaluation_previous_goal if self.evaluation_previous_goal else '',
 			memory=self.memory if self.memory else '',
 			next_goal=self.next_goal if self.next_goal else '',
+			next_goal_reason=self.next_goal_reason if self.next_goal_reason else None,
 		)
 
 	@staticmethod
@@ -444,7 +445,7 @@ class AgentOutput(BaseModel):
 			def model_json_schema(cls, **kwargs):
 				schema = super().model_json_schema(**kwargs)
 				del schema['properties']['thinking']
-				schema['required'] = ['evaluation_previous_goal', 'memory', 'next_goal', 'action']
+				schema['required'] = ['evaluation_previous_goal', 'memory', 'next_goal', 'next_goal_reason', 'action']
 				return schema
 
 		model = create_model(
@@ -471,8 +472,7 @@ class AgentOutput(BaseModel):
 				del schema['properties']['thinking']
 				del schema['properties']['evaluation_previous_goal']
 				del schema['properties']['next_goal']
-				schema['properties'].pop('current_plan_item', None)
-				schema['properties'].pop('plan_update', None)
+				del schema['properties']['next_goal_reason']
 				# Update required fields to only include remaining properties
 				schema['required'] = ['memory', 'action']
 				return schema
@@ -587,6 +587,7 @@ class AgentHistory(BaseModel):
 				'evaluation_previous_goal': self.model_output.evaluation_previous_goal,
 				'memory': self.model_output.memory,
 				'next_goal': self.model_output.next_goal,
+				'next_goal_reason': self.model_output.next_goal_reason,
 				'action': action_dump,  # This preserves the actual action data
 			}
 			# Only include thinking if it's present
