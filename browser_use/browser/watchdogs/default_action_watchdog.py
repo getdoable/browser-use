@@ -510,7 +510,7 @@ class DefaultActionWatchdog(BaseWatchdog):
 		except Exception as e:
 			raise
 
-	async def on_ScrollEvent(self, event: ScrollEvent) -> None:
+	async def on_ScrollEvent(self, event: ScrollEvent) -> dict | None:
 		"""Handle scroll request with CDP."""
 		# Check if we have a current target for scrolling
 		if not self.browser_session.agent_focus_target_id:
@@ -531,8 +531,8 @@ class DefaultActionWatchdog(BaseWatchdog):
 				is_iframe = element_node.tag_name and element_node.tag_name.upper() == 'IFRAME'
 
 				# Try to scroll the element's container
-				success = await self._scroll_element_container(element_node, pixels)
-				if success:
+				scroll_metadata = await self._scroll_element_container(element_node, pixels)
+				if scroll_metadata:
 					self.logger.debug(
 						f'📜 Scrolled element {index_for_logging} container {event.direction} by {event.amount} pixels'
 					)
@@ -547,17 +547,17 @@ class DefaultActionWatchdog(BaseWatchdog):
 						# Wait a bit for the scroll to settle and DOM to update
 						await asyncio.sleep(0.2)
 
-					return None
+					return scroll_metadata
 
 			# Perform target-level scroll
-			await self._scroll_with_cdp_gesture(pixels)
+			scroll_metadata = await self._scroll_with_cdp_gesture(pixels)
 
 			# Note: We don't clear cached state here - let multi_act handle DOM change detection
 			# by explicitly rebuilding and comparing when needed
 
 			# Log success
 			self.logger.debug(f'📜 Scrolled {event.direction} by {event.amount} pixels')
-			return None
+			return scroll_metadata
 		except Exception as e:
 			raise
 
@@ -2059,7 +2059,7 @@ class DefaultActionWatchdog(BaseWatchdog):
 			self.logger.warning(f'⚠️ Failed to trigger framework events: {type(e).__name__}: {e}')
 			# Don't raise - framework events are a best-effort enhancement
 
-	async def _scroll_with_cdp_gesture(self, pixels: int) -> bool:
+	async def _scroll_with_cdp_gesture(self, pixels: int) -> dict | None:
 		"""
 		Scroll using CDP Input.synthesizeScrollGesture to simulate realistic scroll gesture.
 
@@ -2067,7 +2067,7 @@ class DefaultActionWatchdog(BaseWatchdog):
 			pixels: Number of pixels to scroll (positive = down, negative = up)
 
 		Returns:
-			True if successful, False if failed
+			Dict with scroll_x and scroll_y coordinates if successful, None if failed
 		"""
 		try:
 			# Get focused CDP session using public API (validates and waits for recovery if needed)
@@ -2104,16 +2104,19 @@ class DefaultActionWatchdog(BaseWatchdog):
 				session_id=session_id,
 			)
 
-			self.logger.debug(f'📄 Scrolled via CDP gesture: {pixels}px')
-			return True
+			self.logger.debug(f'📄 Scrolled via CDP mouse wheel: {pixels}px')
+			return {'scroll_x': center_x, 'scroll_y': center_y}
 
 		except Exception as e:
-			# Not critical - JavaScript fallback will handle scrolling
-			self.logger.debug(f'CDP gesture scroll failed ({type(e).__name__}: {e}), falling back to JS')
-			return False
+			self.logger.warning(f'❌ Scrolling via CDP failed: {type(e).__name__}: {e}')
+			return None
 
-	async def _scroll_element_container(self, element_node, pixels: int) -> bool:
-		"""Try to scroll an element's container using CDP."""
+	async def _scroll_element_container(self, element_node, pixels: int) -> dict | None:
+		"""Try to scroll an element's container using CDP.
+		
+		Returns:
+			Dict with scroll_x and scroll_y coordinates if successful, None if failed
+		"""
 		try:
 			cdp_session = await self.browser_session.cdp_client_for_node(element_node)
 
@@ -2169,7 +2172,17 @@ class DefaultActionWatchdog(BaseWatchdog):
 						result_value = scroll_result['result']['value']
 						if result_value.get('success'):
 							self.logger.debug(f'Successfully scrolled iframe content by {result_value.get("scrolled", 0)}px')
-							return True
+							# For iframe, get the iframe element's center position
+							try:
+								box_model = await cdp_session.cdp_client.send.DOM.getBoxModel(
+									params={'backendNodeId': backend_node_id}, session_id=cdp_session.session_id
+								)
+								content_quad = box_model['model']['content']
+								center_x = (content_quad[0] + content_quad[2] + content_quad[4] + content_quad[6]) / 4
+								center_y = (content_quad[1] + content_quad[3] + content_quad[5] + content_quad[7]) / 4
+								return {'scroll_x': center_x, 'scroll_y': center_y, "is_iframe": True}
+							except Exception:
+								return {'scroll_x': 0, 'scroll_y': 0}
 						else:
 							self.logger.debug(f'Failed to scroll iframe: {result_value.get("error", "Unknown error")}')
 
@@ -2197,10 +2210,10 @@ class DefaultActionWatchdog(BaseWatchdog):
 				session_id=cdp_session.session_id,
 			)
 
-			return True
+			return {'scroll_x': center_x, 'scroll_y': center_y}
 		except Exception as e:
 			self.logger.debug(f'Failed to scroll element container via CDP: {e}')
-			return False
+			return None
 
 	async def _get_session_id_for_element(self, element_node: EnhancedDOMTreeNode) -> str | None:
 		"""Get the appropriate CDP session ID for an element based on its frame."""
