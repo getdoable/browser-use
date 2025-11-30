@@ -625,6 +625,7 @@ class DOMTreeSerializer:
 			is_interactive_assign = self._is_interactive_cached(node.original_node)
 			is_visible = node.original_node.snapshot_node and node.original_node.is_visible
 			is_scrollable = node.original_node.is_actually_scrollable
+			should_show_scroll_info = node.original_node.should_show_scroll_info
 
 			# DIAGNOSTIC: Log when interactive elements don't have snapshot_node
 			if is_interactive_assign and not node.original_node.snapshot_node:
@@ -704,13 +705,14 @@ class DOMTreeSerializer:
 			elif is_interactive_assign and (is_visible or is_file_input or is_shadow_dom_element):
 				# Non-scrollable interactive elements: make interactive if visible (or file input or shadow DOM form element)
 				should_make_interactive = True
+			elif should_show_scroll_info and is_visible:
+				# Visible scroll container that should show scroll info (from #17)
+				should_make_interactive = True
 
 			# Add to selector map if element should be interactive
 			if should_make_interactive:
-				# Mark node as interactive
 				node.is_interactive = True
-				# Store backend_node_id in selector map (model outputs backend_node_id)
-				self._selector_map[node.original_node.backend_node_id] = node.original_node
+				self._selector_map[self._interactive_counter] = node.original_node
 				self._interactive_counter += 1
 
 				# Mark compound components as new for visibility
