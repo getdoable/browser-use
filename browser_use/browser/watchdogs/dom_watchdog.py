@@ -492,6 +492,8 @@ class DOMWatchdog(BaseWatchdog):
 				pending_network_requests=pending_requests,
 				pagination_buttons=pagination_buttons_data,
 				closed_popup_messages=self.browser_session._closed_popup_messages.copy(),
+				# dom_text is populated later in AgentMessagePrompt using agent settings
+				enhanced_dom_tree=self.enhanced_dom_tree,
 			)
 
 			# Cache the state
