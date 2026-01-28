@@ -887,7 +887,12 @@ class DOMTreeSerializer:
 		return False
 
 	@staticmethod
-	def serialize_tree(node: SimplifiedNode | None, include_attributes: list[str], depth: int = 0) -> str:
+	def serialize_tree(
+		node: SimplifiedNode | None,
+		include_attributes: list[str],
+		depth: int = 0,
+		include_class_tokens: list[str] | None = None,
+	) -> str:
 		"""Serialize the optimized tree to string format."""
 		if not node:
 			return ''
@@ -896,7 +901,7 @@ class DOMTreeSerializer:
 		if hasattr(node, 'excluded_by_parent') and node.excluded_by_parent:
 			formatted_text = []
 			for child in node.children:
-				child_text = DOMTreeSerializer.serialize_tree(child, include_attributes, depth)
+				child_text = DOMTreeSerializer.serialize_tree(child, include_attributes, depth, include_class_tokens)
 				if child_text:
 					formatted_text.append(child_text)
 			return '\n'.join(formatted_text)
@@ -909,7 +914,7 @@ class DOMTreeSerializer:
 			# Skip displaying nodes marked as should_display=False
 			if not node.should_display:
 				for child in node.children:
-					child_text = DOMTreeSerializer.serialize_tree(child, include_attributes, depth)
+					child_text = DOMTreeSerializer.serialize_tree(child, include_attributes, depth, include_class_tokens)
 					if child_text:
 						formatted_text.append(child_text)
 				return '\n'.join(formatted_text)
@@ -954,7 +959,7 @@ class DOMTreeSerializer:
 				# Build attributes string with compound component info
 				text_content = ''
 				attributes_html_str = DOMTreeSerializer._build_attributes_string(
-					node.original_node, include_attributes, text_content
+					node.original_node, include_attributes, text_content, include_class_tokens
 				)
 
 				# Add compound component information to attributes if present
@@ -1055,7 +1060,7 @@ class DOMTreeSerializer:
 
 			# Process shadow DOM children
 			for child in node.children:
-				child_text = DOMTreeSerializer.serialize_tree(child, include_attributes, next_depth)
+				child_text = DOMTreeSerializer.serialize_tree(child, include_attributes, next_depth, include_class_tokens)
 				if child_text:
 					formatted_text.append(child_text)
 
@@ -1082,7 +1087,7 @@ class DOMTreeSerializer:
 		# Process children (for non-shadow elements)
 		if node.original_node.node_type != NodeType.DOCUMENT_FRAGMENT_NODE:
 			for child in node.children:
-				child_text = DOMTreeSerializer.serialize_tree(child, include_attributes, next_depth)
+				child_text = DOMTreeSerializer.serialize_tree(child, include_attributes, next_depth, include_class_tokens)
 				if child_text:
 					formatted_text.append(child_text)
 
@@ -1152,7 +1157,12 @@ class DOMTreeSerializer:
 		return None
 
 	@staticmethod
-	def _build_attributes_string(node: EnhancedDOMTreeNode, include_attributes: list[str], text: str) -> str:
+	def _build_attributes_string(
+		node: EnhancedDOMTreeNode,
+		include_attributes: list[str],
+		text: str,
+		include_class_tokens: list[str] | None = None,
+	) -> str:
 		"""Build the attributes string for an element."""
 		attributes_to_include = {}
 
@@ -1241,6 +1251,21 @@ class DOMTreeSerializer:
 						else:
 							attributes_to_include['placeholder'] = 'mm/dd/yyyy'
 							attributes_to_include['format'] = 'mm/dd/yyyy'
+
+		# Conditional class attribute inclusion: by default, omit class entirely to avoid
+		# dumping huge CSS class lists into the LLM prompt. If the caller provides an
+		# allowlist of class tokens, include ONLY the matching tokens.
+		class_value = attributes_to_include.get('class')
+		if class_value:
+			if not include_class_tokens:
+				attributes_to_include.pop('class', None)
+			else:
+				tokens = class_value.split()
+				matched = [t for t in include_class_tokens if t in tokens]
+				if matched:
+					attributes_to_include['class'] = ' '.join(matched)
+				else:
+					attributes_to_include.pop('class', None)
 
 		# Include accessibility properties
 		if node.ax_node and node.ax_node.properties:
