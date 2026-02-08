@@ -3,6 +3,8 @@
 import asyncio
 import os
 import shutil
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -85,6 +87,38 @@ class LocalBrowserWatchdog(BaseWatchdog):
 			# Dispatch BrowserKillEvent without awaiting so it gets processed after all BrowserStopEvent handlers
 			self.event_bus.dispatch(BrowserKillEvent())
 
+	async def _launch_browser_process(self, browser_path: str, launch_args: list[str]) -> int:
+		"""Launch browser subprocess and return its PID.
+
+		Uses asyncio.create_subprocess_exec when the event loop supports it. On Windows,
+		SelectorEventLoop does not support subprocesses (NotImplementedError); we fall
+		back to subprocess.Popen in a thread executor.
+		"""
+		try:
+			proc = await asyncio.create_subprocess_exec(
+				browser_path,
+				*launch_args,
+				stdout=asyncio.subprocess.PIPE,
+				stderr=asyncio.subprocess.PIPE,
+			)
+			return proc.pid
+		except NotImplementedError:
+			if sys.platform != 'win32':
+				raise
+			# Windows: SelectorEventLoop does not implement subprocess transport.
+			# Run Popen in a thread and return pid.
+			def _popen() -> int:
+				p = subprocess.Popen(
+					[browser_path, *launch_args],
+					stdout=subprocess.DEVNULL,
+					stderr=subprocess.DEVNULL,
+				)
+				return p.pid
+
+			loop = asyncio.get_running_loop()
+			return await loop.run_in_executor(None, _popen)
+
+
 	async def _launch_browser(self, max_retries: int = 3) -> tuple[psutil.Process, str]:
 		"""Launch browser process and return (process, cdp_url).
 
@@ -135,18 +169,13 @@ class LocalBrowserWatchdog(BaseWatchdog):
 
 				# Launch browser subprocess directly
 				self.logger.debug(f'[LocalBrowserWatchdog] 🚀 Launching browser subprocess with {len(launch_args)} args...')
-				subprocess = await asyncio.create_subprocess_exec(
-					browser_path,
-					*launch_args,
-					stdout=asyncio.subprocess.PIPE,
-					stderr=asyncio.subprocess.PIPE,
-				)
+				pid = await self._launch_browser_process(browser_path, launch_args)
 				self.logger.debug(
-					f'[LocalBrowserWatchdog] 🎭 Browser running with browser_pid= {subprocess.pid} 🔗 listening on CDP port :{debug_port}'
+					f'[LocalBrowserWatchdog] 🎭 Browser running with browser_pid= {pid} 🔗 listening on CDP port :{debug_port}'
 				)
 
 				# Convert to psutil.Process
-				process = psutil.Process(subprocess.pid)
+				process = psutil.Process(pid)
 
 				# Wait for CDP to be ready and get the URL
 				cdp_url = await self._wait_for_cdp_url(debug_port)
