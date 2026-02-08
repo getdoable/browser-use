@@ -255,6 +255,24 @@ class Tools(Generic[Context]):
 				return ActionResult(error=error_msg)
 
 		@self.registry.action(
+			'Refresh or reload the current page. Use when the page needs to be reloaded (e.g. after a timeout or to see updated content).',
+			param_model=NoParamsAction,
+		)
+		async def refresh(_: NoParamsAction, browser_session: BrowserSession):
+			try:
+				event = browser_session.event_bus.dispatch(RefreshEvent())
+				await event
+				await event.event_result(raise_if_any=True, raise_if_none=False)
+				memory = 'Refreshed the page'
+				msg = f'🔄  {memory}'
+				logger.info(msg)
+				return ActionResult(extracted_content=memory, long_term_memory=memory)
+			except Exception as e:
+				logger.error(f'Failed to dispatch RefreshEvent: {type(e).__name__}: {e}')
+				error_msg = f'Failed to refresh page: {str(e)}'
+				return ActionResult(error=error_msg)
+
+		@self.registry.action(
 			'Wait for x seconds (default 3) (max 30 seconds). This can be used to wait until the page is fully loaded.'
 		)
 		async def wait(seconds: int = 3):
