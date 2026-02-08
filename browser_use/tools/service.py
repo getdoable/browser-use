@@ -19,6 +19,7 @@ from browser_use.browser.events import (
 	GetDropdownOptionsEvent,
 	GoBackEvent,
 	NavigateToUrlEvent,
+	RefreshEvent,
 	ScrollEvent,
 	ScrollToTextEvent,
 	SendKeysEvent,
