@@ -1608,6 +1608,18 @@ class DefaultActionWatchdog(BaseWatchdog):
 					'pagedown': 'PageDown',
 					'home': 'Home',
 					'end': 'End',
+					'f1': 'F1',
+					'f2': 'F2',
+					'f3': 'F3',
+					'f4': 'F4',
+					'f5': 'F5',
+					'f6': 'F6',
+					'f7': 'F7',
+					'f8': 'F8',
+					'f9': 'F9',
+					'f10': 'F10',
+					'f11': 'F11',
+					'f12': 'F12',
 				}
 
 				key = key_map.get(keys, keys)
@@ -1633,6 +1645,18 @@ class DefaultActionWatchdog(BaseWatchdog):
 					'end': 35,
 					'pageup': 33,
 					'pagedown': 34,
+					'f1': 112,
+					'f2': 113,
+					'f3': 114,
+					'f4': 115,
+					'f5': 116,
+					'f6': 117,
+					'f7': 118,
+					'f8': 119,
+					'f9': 120,
+					'f10': 121,
+					'f11': 122,
+					'f12': 123,
 				}
 
 				if keys in keys_needing_char_event:

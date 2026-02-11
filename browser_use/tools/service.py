@@ -19,6 +19,7 @@ from browser_use.browser.events import (
 	GetDropdownOptionsEvent,
 	GoBackEvent,
 	NavigateToUrlEvent,
+	RefreshEvent,
 	ScrollEvent,
 	ScrollToTextEvent,
 	SendKeysEvent,
@@ -252,6 +253,24 @@ class Tools(Generic[Context]):
 			except Exception as e:
 				logger.error(f'Failed to dispatch GoBackEvent: {type(e).__name__}: {e}')
 				error_msg = f'Failed to go back: {str(e)}'
+				return ActionResult(error=error_msg)
+
+		@self.registry.action(
+			'Refresh or reload the current page. Use when the page needs to be reloaded (e.g. after a timeout or to see updated content).',
+			param_model=NoParamsAction,
+		)
+		async def refresh(_: NoParamsAction, browser_session: BrowserSession):
+			try:
+				event = browser_session.event_bus.dispatch(RefreshEvent())
+				await event
+				await event.event_result(raise_if_any=True, raise_if_none=False)
+				memory = 'Refreshed the page'
+				msg = f'🔄  {memory}'
+				logger.info(msg)
+				return ActionResult(extracted_content=memory, long_term_memory=memory)
+			except Exception as e:
+				logger.error(f'Failed to dispatch RefreshEvent: {type(e).__name__}: {e}')
+				error_msg = f'Failed to refresh page: {str(e)}'
 				return ActionResult(error=error_msg)
 
 		@self.registry.action(
