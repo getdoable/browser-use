@@ -1733,33 +1733,66 @@ class DefaultActionWatchdog(BaseWatchdog):
 
 	async def on_UploadFileEvent(self, event: UploadFileEvent) -> None:
 		"""Handle file upload request with CDP."""
+		# NOTE: This action uses CDP DOM.setFileInputFiles under the hood.
+		# Chrome returns {'code': -32001, 'message': 'Session with given id not found.'}
+		# when a cached/detached sessionId is used (common after target/tab changes).
+		# We retry once with a freshly recreated CDP session.
+		element_node = event.node
+		index_for_logging = element_node.element_index or 'unknown'
+
+		# Check if it's a file input
+		if not self.browser_session.is_file_input(element_node):
+			msg = f'Upload failed - element {index_for_logging} is not a file input.'
+			raise BrowserError(message=msg, long_term_memory=msg)
+
+		backend_node_id = element_node.backend_node_id
+
+		def _is_stale_cdp_session_error(err: Exception) -> bool:
+			msg = str(err)
+			return ('Session with given id not found' in msg) or ("'code': -32001" in msg) or ('code": -32001' in msg)
+
+		# Prefer node-aware session selection (handles iframes / target mapping)
+		cdp_session = await self.browser_session.cdp_client_for_node(element_node)
+
 		try:
-			# Use the provided node
-			element_node = event.node
-			index_for_logging = element_node.element_index or 'unknown'
-
-			# Check if it's a file input
-			if not self.browser_session.is_file_input(element_node):
-				msg = f'Upload failed - element {index_for_logging} is not a file input.'
-				raise BrowserError(message=msg, long_term_memory=msg)
-
-			# Get CDP client and session
-			cdp_client = self.browser_session.cdp_client
-			session_id = await self._get_session_id_for_element(element_node)
-
-			# Set file(s) to upload
-			backend_node_id = element_node.backend_node_id
-			await cdp_client.send.DOM.setFileInputFiles(
+			await cdp_session.cdp_client.send.DOM.setFileInputFiles(
 				params={
 					'files': [event.file_path],
 					'backendNodeId': backend_node_id,
 				},
-				session_id=session_id,
+				session_id=cdp_session.session_id,
+			)
+		except Exception as e:
+			if not _is_stale_cdp_session_error(e):
+				raise
+
+			# Force-recreate the session for this target and retry once.
+			# get_or_create_cdp_session() will otherwise reuse the cached session from the pool.
+			try:
+				if cdp_session.target_id in self.browser_session._cdp_session_pool:
+					del self.browser_session._cdp_session_pool[cdp_session.target_id]
+			except Exception:
+				# best-effort; if pool layout changes, BaseWatchdog will still attempt repair on error
+				pass
+
+			should_focus = (
+				self.browser_session.agent_focus is not None
+				and self.browser_session.agent_focus.target_id == cdp_session.target_id
+			)
+			repaired_session = await self.browser_session.get_or_create_cdp_session(
+				target_id=cdp_session.target_id,
+				focus=should_focus,
+				new_socket=True,
+			)
+			await repaired_session.cdp_client.send.DOM.setFileInputFiles(
+				params={
+					'files': [event.file_path],
+					'backendNodeId': backend_node_id,
+				},
+				session_id=repaired_session.session_id,
 			)
 
-			self.logger.info(f'📎 Uploaded file {event.file_path} to element {index_for_logging}')
-		except Exception as e:
-			raise
+		self.logger.info(f'📎 Uploaded file {event.file_path} to element {index_for_logging}')
 
 	async def on_ScrollToTextEvent(self, event: ScrollToTextEvent) -> None:
 		"""Handle scroll to text request with CDP. Raises exception if text not found."""
