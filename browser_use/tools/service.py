@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 import os
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 import anyio
 
