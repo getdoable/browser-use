@@ -402,6 +402,8 @@ class AgentOutput(BaseModel):
 	memory: str | None = None
 	next_goal: str | None = None
 	next_goal_reason: str | None = None
+	current_plan_item: int | None = None
+	plan_update: list[str] | None = None
 	action: list[ActionModel] = Field(
 		...,
 		json_schema_extra={'min_items': 1},  # Ensure at least one action is provided
@@ -476,6 +478,8 @@ class AgentOutput(BaseModel):
 				del schema['properties']['evaluation_previous_goal']
 				del schema['properties']['next_goal']
 				del schema['properties']['next_goal_reason']
+				del schema['properties']['current_plan_item']
+				del schema['properties']['plan_update']
 				# Update required fields to only include remaining properties
 				schema['required'] = ['memory', 'action']
 				return schema
