@@ -746,6 +746,13 @@ class Tools(Generic[Context]):
 		async def upload_file(
 			params: UploadFileAction, browser_session: BrowserSession, available_file_paths: list[str], file_system: FileSystem
 		):
+			# Resolve basename: agent may pass only filename (e.g. "logo.jpg") while available_file_paths has full paths
+			if available_file_paths and params.path not in available_file_paths:
+				basename = os.path.basename(params.path)
+				if basename == params.path:
+					matches = [p for p in available_file_paths if os.path.basename(p) == basename]
+					if len(matches) == 1:
+						params = UploadFileAction(index=params.index, path=matches[0])
 			# Check if file is in available_file_paths (user-provided or downloaded files)
 			# For remote browsers (is_local=False), we allow absolute remote paths even if not tracked locally
 			if params.path not in available_file_paths:
@@ -2451,6 +2458,13 @@ class CodeAgentTools(Tools[Context]):
 			available_file_paths: list[str],
 			file_system: FileSystem,
 		):
+			# Resolve basename: agent may pass only filename while available_file_paths has full paths
+			if available_file_paths and params.path not in available_file_paths:
+				basename = os.path.basename(params.path)
+				if basename == params.path:
+					matches = [p for p in available_file_paths if os.path.basename(p) == basename]
+					if len(matches) == 1:
+						params = UploadFileAction(index=params.index, path=matches[0])
 			# Path validation logic for code-use mode:
 			# 1. If available_file_paths provided (security mode), enforce it as a whitelist
 			# 2. If no whitelist, for local browsers just check file exists
