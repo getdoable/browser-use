@@ -2555,14 +2555,12 @@ class DefaultActionWatchdog(BaseWatchdog):
 		# when a cached/detached sessionId is used (common after target/tab changes).
 		# We retry once with a freshly recreated CDP session.
 		element_node = event.node
-		index_for_logging = element_node.element_index or 'unknown'
+		backend_node_id = element_node.backend_node_id
 
 		# Check if it's a file input
 		if not self.browser_session.is_file_input(element_node):
-			msg = f'Upload failed - element {index_for_logging} is not a file input.'
+			msg = f'Upload failed - element (backend_node_id={backend_node_id}) is not a file input.'
 			raise BrowserError(message=msg, long_term_memory=msg)
-
-		backend_node_id = element_node.backend_node_id
 
 		def _is_stale_cdp_session_error(err: Exception) -> bool:
 			msg = str(err)
@@ -2617,7 +2615,7 @@ class DefaultActionWatchdog(BaseWatchdog):
 				session_id=repaired_session.session_id,
 			)
 
-		self.logger.info(f'📎 Uploaded file {event.file_path} to element {index_for_logging}')
+		self.logger.info(f'📎 Uploaded file {event.file_path} to element (backend_node_id={backend_node_id})')
 
 	async def on_ScrollToTextEvent(self, event: ScrollToTextEvent) -> None:
 		"""Handle scroll to text request with CDP. Raises exception if text not found."""
