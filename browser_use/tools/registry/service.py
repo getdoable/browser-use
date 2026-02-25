@@ -339,16 +339,21 @@ class Registry(Generic[Context]):
 		extraction_schema: dict | None = None,
 	) -> Any:
 		"""Execute a registered action with simplified parameter handling"""
-		if action_name not in self.registry.actions:
+		# Support legacy alias: input_text -> input (main branch used input_text; main-updated uses input)
+		resolved_action_name = action_name
+		if action_name == 'input_text' and action_name not in self.registry.actions and 'input' in self.registry.actions:
+			resolved_action_name = 'input'
+
+		if resolved_action_name not in self.registry.actions:
 			raise ValueError(f'Action {action_name} not found')
 
-		action = self.registry.actions[action_name]
+		action = self.registry.actions[resolved_action_name]
 		try:
 			# Create the validated Pydantic model
 			try:
 				validated_params = action.param_model(**params)
 			except Exception as e:
-				raise ValueError(f'Invalid parameters {params} for action {action_name}: {type(e)}: {e}') from e
+				raise ValueError(f'Invalid parameters {params} for action {resolved_action_name}: {type(e)}: {e}') from e
 
 			did_replace_sensitive_data = False
 			if sensitive_data:
@@ -366,18 +371,18 @@ class Registry(Generic[Context]):
 					validated_params, sensitive_data, current_url
 				)
 
-			# Build special context dict
+			# Build special context dict (resolved_action_name so input_text alias gets sensitive_data)
 			special_context = {
 				'browser_session': browser_session,
 				'page_extraction_llm': page_extraction_llm,
 				'available_file_paths': available_file_paths,
-				'has_sensitive_data': action_name == 'input' and did_replace_sensitive_data,
+				'has_sensitive_data': resolved_action_name == 'input' and did_replace_sensitive_data,
 				'file_system': file_system,
 				'extraction_schema': extraction_schema,
 			}
 
-			# Only pass sensitive_data to actions that explicitly need it (input)
-			if action_name == 'input':
+			# Only pass sensitive_data to actions that explicitly need it (input / input_text)
+			if resolved_action_name == 'input':
 				special_context['sensitive_data'] = sensitive_data
 
 			# Add CDP-related parameters if browser_session is available

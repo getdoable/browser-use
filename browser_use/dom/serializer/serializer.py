@@ -717,6 +717,7 @@ class DOMTreeSerializer:
 			# Add to selector map if element should be interactive
 			if should_make_interactive:
 				node.is_interactive = True
+				node.interactive_index = self._interactive_counter
 				self._selector_map[self._interactive_counter] = node.original_node
 				self._interactive_counter += 1
 
@@ -932,10 +933,11 @@ class DOMTreeSerializer:
 					shadow_prefix = '|SHADOW(closed)|' if has_closed_shadow else '|SHADOW(open)|'
 
 				line = f'{depth_str}{shadow_prefix}'
-				# Add interactive marker if clickable
+				# Add interactive marker if clickable (use sequential index agent uses for actions)
 				if node.is_interactive:
 					new_prefix = '*' if node.is_new else ''
-					line += f'{new_prefix}[{node.original_node.backend_node_id}]'
+					idx = node.interactive_index if node.interactive_index is not None else node.original_node.backend_node_id
+					line += f'{new_prefix}[{idx}]'
 				line += '<svg'
 				attributes_html_str = DOMTreeSerializer._build_attributes_string(node.original_node, include_attributes, '')
 				if attributes_html_str:
@@ -1023,10 +1025,11 @@ class DOMTreeSerializer:
 					# Scrollable container but not clickable
 					line = f'{depth_str}{shadow_prefix}|scroll element|<{node.original_node.tag_name}'
 				elif node.is_interactive:
-					# Clickable (and possibly scrollable) - show backend_node_id
+					# Clickable (and possibly scrollable) - show sequential index (selector_map key agent uses)
 					new_prefix = '*' if node.is_new else ''
+					idx = node.interactive_index if node.interactive_index is not None else node.original_node.backend_node_id
 					scroll_prefix = '|scroll element[' if should_show_scroll else '['
-					line = f'{depth_str}{shadow_prefix}{new_prefix}{scroll_prefix}{node.original_node.backend_node_id}]<{node.original_node.tag_name}'
+					line = f'{depth_str}{shadow_prefix}{new_prefix}{scroll_prefix}{idx}]<{node.original_node.tag_name}'
 				elif node.original_node.tag_name.upper() == 'IFRAME':
 					# Iframe element (not interactive)
 					line = f'{depth_str}{shadow_prefix}|IFRAME|<{node.original_node.tag_name}'

@@ -983,17 +983,20 @@ class BrowserSession(BaseModel):
 			await self.event_bus.dispatch(SwitchTabEvent(target_id=None))
 
 	async def on_AgentFocusChangedEvent(self, event: AgentFocusChangedEvent) -> None:
-		"""Handle agent focus change - update focus and clear cache."""
+		"""Handle agent focus change - update focus and clear cache only when the focused tab actually changed."""
 		self.logger.debug(f'🔄 AgentFocusChangedEvent received: target_id=...{event.target_id[-4:]} url={event.url}')
 
-		# Clear cached DOM state since focus changed
-		if self._dom_watchdog:
-			self._dom_watchdog.clear_cache()
-
-		# Clear cached browser state
-		self._cached_browser_state_summary = None
-		self._cached_selector_map.clear()
-		self.logger.debug('🔄 Cached browser state cleared')
+		# Only clear cache when the agent's focused tab actually changed (e.g. tab switch).
+		# Do not clear on same-tab navigation: NavigationCompleteEvent also dispatches this event,
+		# and clearing here would invalidate the selector map before pending actions (e.g. click)
+		# run, causing "element index not available".
+		focus_actually_changed = event.target_id != self.agent_focus_target_id
+		if focus_actually_changed:
+			if self._dom_watchdog:
+				self._dom_watchdog.clear_cache()
+			self._cached_browser_state_summary = None
+			self._cached_selector_map.clear()
+			self.logger.debug('🔄 Cached browser state cleared (focus changed to different tab)')
 
 		# Update agent focus if a specific target_id is provided (only for page/tab targets)
 		if event.target_id:

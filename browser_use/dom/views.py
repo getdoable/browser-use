@@ -222,6 +222,7 @@ class SimplifiedNode:
 	children: list['SimplifiedNode']
 	should_display: bool = True
 	is_interactive: bool = False  # True if element is in selector_map
+	interactive_index: int | None = None  # selector_map key shown to agent (1, 2, 3, ...)
 
 	is_new: bool = False
 
@@ -251,6 +252,7 @@ class SimplifiedNode:
 		return {
 			'should_display': self.should_display,
 			'is_interactive': self.is_interactive,
+			'interactive_index': self.interactive_index,
 			'ignored_by_paint_order': self.ignored_by_paint_order,
 			'excluded_by_parent': self.excluded_by_parent,
 			'original_node': cleaned_original_node_json,

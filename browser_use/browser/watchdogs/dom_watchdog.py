@@ -418,6 +418,26 @@ class DOMWatchdog(BaseWatchdog):
 				except Exception as e:
 					self.logger.warning(f'🔍 DOMWatchdog.on_BrowserStateRequestEvent: Browser highlighting failed: {e}')
 
+			# Apply Python-based highlighting if both DOM and screenshot are available
+			if screenshot_b64 and content and content.selector_map and self.browser_session.browser_profile.highlight_elements:
+				try:
+					self.logger.debug('🔍 DOMWatchdog.on_BrowserStateRequestEvent: 🎨 Applying Python-based highlighting...')
+					from browser_use.browser.python_highlights import create_highlighted_screenshot_async
+
+					cdp_session = await self.browser_session.get_or_create_cdp_session()
+					start = time.time()
+					screenshot_b64 = await create_highlighted_screenshot_async(
+						screenshot_b64,
+						content.selector_map,
+						cdp_session,
+						self.browser_session.browser_profile.filter_highlight_ids,
+					)
+					self.logger.debug(
+						f'🔍 DOMWatchdog.on_BrowserStateRequestEvent: ✅ Applied highlights to {len(content.selector_map)} elements in {time.time() - start:.2f}s'
+					)
+				except Exception as e:
+					self.logger.warning(f'🔍 DOMWatchdog.on_BrowserStateRequestEvent: Python highlighting failed: {e}')
+
 			# Ensure we have valid content
 			if not content:
 				content = SerializedDOMState(_root=None, selector_map={})
