@@ -344,6 +344,7 @@ def process_element_highlight(
 	device_pixel_ratio: float,
 	font,
 	filter_highlight_ids: bool,
+	additional_meaningful_text_attributes: list[str],
 	image_size: tuple[int, int],
 ) -> None:
 	"""Process a single element for highlighting."""
@@ -385,7 +386,7 @@ def process_element_highlight(
 		index_text = None
 
 		if filter_highlight_ids:
-			meaningful_text = element.get_meaningful_text_for_llm()
+			meaningful_text = element.get_meaningful_text_for_llm(additional_attributes=additional_meaningful_text_attributes)
 			if len(meaningful_text) < 3:
 				index_text = str(element_id)
 		else:
@@ -409,6 +410,7 @@ async def create_highlighted_screenshot(
 	viewport_offset_x: int = 0,
 	viewport_offset_y: int = 0,
 	filter_highlight_ids: bool = True,
+	additional_meaningful_text_attributes: list[str] = [],
 ) -> str:
 	"""Create a highlighted screenshot with bounding boxes around interactive elements.
 
@@ -418,6 +420,8 @@ async def create_highlighted_screenshot(
 	    device_pixel_ratio: Device pixel ratio for scaling coordinates
 	    viewport_offset_x: X offset for viewport positioning
 	    viewport_offset_y: Y offset for viewport positioning
+	    additional_meaningful_text_attributes: Extra attribute names appended to the built-in
+	        meaningful-text priority list when deciding whether to suppress the index overlay.
 
 	Returns:
 	    Base64 encoded highlighted screenshot
@@ -437,7 +441,7 @@ async def create_highlighted_screenshot(
 		# Process elements sequentially to avoid ImageDraw thread safety issues
 		# PIL ImageDraw is not thread-safe, so we process elements one by one
 		for element_id, element in selector_map.items():
-			process_element_highlight(element_id, element, draw, device_pixel_ratio, font, filter_highlight_ids, image.size)
+			process_element_highlight(element_id, element, draw, device_pixel_ratio, font, filter_highlight_ids, additional_meaningful_text_attributes, image.size)
 
 		# Convert back to base64
 		output_buffer = io.BytesIO()
@@ -496,7 +500,11 @@ async def get_viewport_info_from_cdp(cdp_session) -> tuple[float, int, int]:
 
 @time_execution_async('create_highlighted_screenshot_async')
 async def create_highlighted_screenshot_async(
-	screenshot_b64: str, selector_map: DOMSelectorMap, cdp_session=None, filter_highlight_ids: bool = True
+	screenshot_b64: str,
+	selector_map: DOMSelectorMap,
+	cdp_session=None,
+	filter_highlight_ids: bool = True,
+	additional_meaningful_text_attributes: list[str] = [],
 ) -> str:
 	"""Async wrapper for creating highlighted screenshots.
 
@@ -505,6 +513,8 @@ async def create_highlighted_screenshot_async(
 	    selector_map: Map of interactive elements
 	    cdp_session: CDP session for getting viewport info
 	    filter_highlight_ids: Whether to filter element IDs based on meaningful text
+	    additional_meaningful_text_attributes: Extra attribute names appended to the built-in
+	        meaningful-text priority list when deciding whether to suppress the index overlay.
 
 	Returns:
 	    Base64 encoded highlighted screenshot
@@ -522,7 +532,7 @@ async def create_highlighted_screenshot_async(
 
 	# Create highlighted screenshot with async processing
 	final_screenshot = await create_highlighted_screenshot(
-		screenshot_b64, selector_map, device_pixel_ratio, viewport_offset_x, viewport_offset_y, filter_highlight_ids
+		screenshot_b64, selector_map, device_pixel_ratio, viewport_offset_x, viewport_offset_y, filter_highlight_ids, additional_meaningful_text_attributes
 	)
 
 	filename = os.getenv('BROWSER_USE_SCREENSHOT_FILE')

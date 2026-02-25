@@ -648,7 +648,17 @@ class BrowserProfile(BrowserConnectArgs, BrowserLaunchPersistentContextArgs, Bro
 		default=False, description='Highlight interactive elements in the DOM (only for debugging purposes).'
 	)
 	filter_highlight_ids: bool = Field(
-		default=True, description='Only show element IDs in highlights if llm_representation is less than 10 characters.'
+		default=True, description='Only show element IDs in highlights if meaningful_text is less than 3 characters.'
+	)
+	additional_meaningful_text_attributes: list[str] = Field(
+		default_factory=list,
+		description=(
+			'Extra HTML attributes to treat as "meaningful text" for screenshot index-overlay suppression. '
+			'These are appended to the built-in priority list (value, aria-label, title, placeholder, alt). '
+			'When filter_highlight_ids=True, the index number is hidden on the screenshot if any of these '
+			'attributes (or the built-in ones) contains text of 3+ characters. '
+			'Example: ["data-test", "data-testid"] to suppress the overlay for elements identified by test selectors.'
+		),
 	)
 	paint_order_filtering: bool = Field(default=True, description='Enable paint order filtering. Slightly experimental.')
 	interaction_highlight_color: str = Field(

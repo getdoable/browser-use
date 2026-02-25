@@ -601,15 +601,23 @@ class EnhancedDOMTreeNode:
 
 		return f'<{self.tag_name}>{cap_text_length(self.get_all_children_text(), max_text_length) or ""}'
 
-	def get_meaningful_text_for_llm(self) -> str:
+	def get_meaningful_text_for_llm(self, additional_attributes: list[str] = []) -> str:
 		"""
 		Get the meaningful text content that the LLM actually sees for this element.
 		This matches exactly what goes into the DOMTreeSerializer output.
+
+		Args:
+		    additional_attributes: Extra attribute names to check after the built-in priority list
+		                           (value, aria-label, title, placeholder, alt). Used by the
+		                           screenshot highlighter to suppress index overlays for elements
+		                           identified by custom test/data attributes (e.g. data-test).
 		"""
+		built_in_attrs = ['value', 'aria-label', 'title', 'placeholder', 'alt']
+		attrs_to_check = built_in_attrs + additional_attributes
+
 		meaningful_text = ''
 		if hasattr(self, 'attributes') and self.attributes:
-			# Priority order: value, aria-label, title, placeholder, alt, text content
-			for attr in ['value', 'aria-label', 'title', 'placeholder', 'alt']:
+			for attr in attrs_to_check:
 				if attr in self.attributes and self.attributes[attr]:
 					meaningful_text = self.attributes[attr]
 					break

@@ -214,6 +214,7 @@ class BrowserSession(BaseModel):
 		window_size: dict | None = None,
 		window_position: dict | None = None,
 		filter_highlight_ids: bool | None = None,
+		additional_meaningful_text_attributes: list[str] | None = None,
 		profile_directory: str | None = None,
 	) -> None: ...
 
@@ -283,6 +284,7 @@ class BrowserSession(BaseModel):
 		wait_for_network_idle_page_load_time: float | None = None,
 		wait_between_actions: float | None = None,
 		filter_highlight_ids: bool | None = None,
+		additional_meaningful_text_attributes: list[str] | None = None,
 		auto_download_pdfs: bool | None = None,
 		profile_directory: str | None = None,
 		cookie_whitelist_domains: list[str] | None = None,

@@ -431,6 +431,7 @@ class DOMWatchdog(BaseWatchdog):
 						content.selector_map,
 						cdp_session,
 						self.browser_session.browser_profile.filter_highlight_ids,
+						self.browser_session.browser_profile.additional_meaningful_text_attributes,
 					)
 					self.logger.debug(
 						f'🔍 DOMWatchdog.on_BrowserStateRequestEvent: ✅ Applied highlights to {len(content.selector_map)} elements in {time.time() - start:.2f}s'
