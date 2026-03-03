@@ -229,10 +229,6 @@ class Agent(Generic[Context, AgentStructuredOutput]):
 
 				llm = ChatBrowserUse()
 
-		# set flashmode = True if llm is ChatBrowserUse
-		if llm.provider == 'browser-use':
-			flash_mode = True
-
 		# Flash mode strips plan fields from the output schema, so planning is structurally impossible
 		if flash_mode:
 			enable_planning = False
